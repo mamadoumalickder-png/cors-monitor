@@ -72,7 +72,7 @@ def main():
         seen_ids = seen_ids[-500:]
     save_state(seen_ids)
 
-    for p in new_posts:
+    for p in new_posts:   
         send_notification(p['title'], p['link'])
         time.sleep(1)
 
