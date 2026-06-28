@@ -1,0 +1,22 @@
+name: CORS Monitor 24/7
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - run: python cors_monitor.py
+      - run: |
+          git config --global user.name 'CORS-Bot'
+          git config --global user.email 'bot@cors.com'
+          git add seen_posts.json
+          git commit -m "Update state" || exit 0
+          git push
