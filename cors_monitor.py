@@ -1,18 +1,19 @@
 import json, os, time, urllib.request, ssl, xml.etree.ElementTree as ET
-from urllib.parse import quote
+from urllib.parse import quote_plus
 
 STATE_FILE = "seen_posts.json"
 
-def send_notification(title, link):
-    # Version ultra-simplifiée pour éviter les erreurs
-    text = f"ALERTE CORS: {title} - Lien: {link}"
-    url = f"https://api.callmebot.com/text.php?id=5821137468&text={quote(text)}"
+def send_notification(text):
+    # On utilise quote_plus pour que les espaces deviennent des '+' (comme dans votre navigateur)
+    url = f"https://api.callmebot.com/text.php?id=5821137468&text={quote_plus(text)}"
     context = ssl._create_unverified_context()
     try:
         req = urllib.request.Request(url, method='GET')
         with urllib.request.urlopen(req, timeout=15, context=context) as response:
-            if response.status == 200: print(f"Succès: {title}")
-    except Exception as e: print(f"Erreur: {e}")
+            res_body = response.read().decode('utf-8')
+            print(f"Reponse API: {res_body}") # Ceci s'affichera dans les logs GitHub
+    except Exception as e:
+        print(f"Erreur envoi: {e}")
 
 def fetch_so_posts():
     url = "https://stackoverflow.com/feeds/tag?tagnames=cors&sort=newest"
@@ -26,21 +27,30 @@ def fetch_so_posts():
             ns = {'atom': 'http://www.w3.org/2005/Atom'}
             for entry in root.findall('atom:entry', ns):
                 posts.append({'id': entry.find('atom:id', ns).text, 'title': entry.find('atom:title', ns).text, 'link': entry.find('atom:link', ns).attrib['href']})
-    except Exception as e: print(f"Erreur SO: {e}")
+    except Exception as e:
+        print(f"Erreur SO: {e}")
     return posts
 
 def main():
+    # MESSAGE DE TEST : L'agent dit bonjour des qu'il commence
+    send_notification("Salut ! Ton agent CORS est en service et commence son scan.")
+    
     if not os.path.exists(STATE_FILE):
         with open(STATE_FILE, "w") as f: json.dump([], f)
     with open(STATE_FILE, "r") as f: seen_ids = json.load(f)
+    
     new_posts = []
     for p in fetch_so_posts():
         if p['id'] not in seen_ids:
             new_posts.append(p)
             seen_ids.append(p['id'])
+            
     with open(STATE_FILE, "w") as f: json.dump(seen_ids[-500:], f)
+    
     for p in new_posts:
-        send_notification(p['title'], p['link'])
-        time.sleep(1)
+        msg = f"Bug detecte: {p['title']} - {p['link']}"
+        send_notification(msg)
+        time.sleep(2)
 
-if __name__ == "__main__": main()
+if __name__ == "__main__":
+    main()
